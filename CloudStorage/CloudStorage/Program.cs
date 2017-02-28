@@ -12,6 +12,15 @@ namespace CloudStorage
 {
     class Program
     {
+        
+       public struct FILE_HEADER
+        {
+            public Int32 m_MagicNumId;          //!< Used to quickly identify a file as being a backup system file.
+            public Int32 m_BufferSize;            //!< Because windows pads files, we need to store how big the original buffer was that got written.
+            public Int32 m_VersionNumber;       //!< 
+            public Int32 m_ChunkTableSize;        //!< 
+        };
+
         static void Main(string[] args)
         {
             // Parse the connection string and return a reference to the storage account.
@@ -49,22 +58,51 @@ namespace CloudStorage
                 CloudFileDirectory rootDir = share.GetRootDirectoryReference();
 
                 // Get a reference to the directory we created previously.
-                CloudFileDirectory sampleDir = rootDir.GetDirectoryReference("TestDirectory");
+                CloudFileDirectory sampleDir = rootDir.GetDirectoryReference("accounts");
 
                 // Ensure that the directory exists.
                 if (sampleDir.Exists())
                 {
                     // Get a reference to the file we created previously.
-                    CloudFile file = sampleDir.GetFileReference("LocalAu.txt");
+                    CloudFile file = sampleDir.GetFileReference("d_accs_data_2way_0.bak");
 
                     // Ensure that the file exists.
                     if (file.Exists())
                     {
                         // Write the contents of the file to the console window.
-                        Console.WriteLine(file.DownloadTextAsync().Result);
+                        long n = file.Properties.Length;
+                        byte[] data = new byte[n];
+
+                        Console.WriteLine("Start downloading " + n + " bytes...");
+
+                        file.BeginDownloadToByteArray(data, 0, new AsyncCallback(HandleDownloadCallBack), data);
+
+                        //Console.WriteLine(data[0]);// file.DownloadTextAsync().Result
                     }
                 }
+
+                
+               int num = Convert.ToInt32(Console.ReadLine());
             }
+        }
+
+        private static void HandleDownloadCallBack(IAsyncResult ar)
+        {
+            byte[] data = (byte[])ar.AsyncState;
+
+            FILE_HEADER header;
+            header.m_MagicNumId = BitConverter.ToInt32(data, 0);
+            header.m_BufferSize = BitConverter.ToInt32(data, 4);
+            header.m_VersionNumber = BitConverter.ToInt32(data, 8);
+            header.m_ChunkTableSize = BitConverter.ToInt32(data, 12);
+
+
+
+            for (Int32 i = 0; i < data.Length; i++)
+            {
+                Console.Write((char)data[i]);
+            }
+            // some code that notify users by sending email or other service
         }
     }
 }
