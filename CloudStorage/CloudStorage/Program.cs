@@ -82,7 +82,6 @@ namespace CloudStorage
                         UInt64 nCredit = GetCredit();
                         Console.WriteLine("Credit=" + nCredit);
 
-
                         // Write the contents of the file to the console window.
                         long n = file.Properties.Length;
                         byte[] data = new byte[n];
