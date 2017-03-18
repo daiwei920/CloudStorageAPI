@@ -7,19 +7,27 @@ using Microsoft.Azure; // Namespace for Azure Configuration Manager
 using Microsoft.WindowsAzure.Storage; // Namespace for Storage Client Library
 using Microsoft.WindowsAzure.Storage.Blob; // Namespace for Blob storage
 using Microsoft.WindowsAzure.Storage.File; // Namespace for File storage
+using System.Runtime.InteropServices;
 
 namespace CloudStorage
 {
     class Program
     {
-        
-       public struct FILE_HEADER
+        [DllImport(@"E:\rtgcode\bin\BackupSystem.dll", EntryPoint = "GetCredit")]
+        public static extern UInt64 GetCredit();
+
+        //[DllImport("user32.dll", EntryPoint = "MessageBox", CharSet = Unicode)]
+        //public static extern Int32 Test(Int32 hWnd, String* lpText, String* lpCaption,  UInt32 uType);
+
+        public struct FILE_HEADER
         {
             public Int32 m_MagicNumId;          //!< Used to quickly identify a file as being a backup system file.
             public Int32 m_BufferSize;            //!< Because windows pads files, we need to store how big the original buffer was that got written.
             public Int32 m_VersionNumber;       //!< 
             public Int32 m_ChunkTableSize;        //!< 
         };
+        
+
 
         static void Main(string[] args)
         {
@@ -69,6 +77,12 @@ namespace CloudStorage
                     // Ensure that the file exists.
                     if (file.Exists())
                     {
+                      //  Test(0, S"Hello world!", S"Greetings", 0);
+
+                        UInt64 nCredit = GetCredit();
+                        Console.WriteLine("Credit=" + nCredit);
+
+
                         // Write the contents of the file to the console window.
                         long n = file.Properties.Length;
                         byte[] data = new byte[n];
@@ -96,11 +110,18 @@ namespace CloudStorage
             header.m_VersionNumber = BitConverter.ToInt32(data, 8);
             header.m_ChunkTableSize = BitConverter.ToInt32(data, 12);
 
+            int ActualDataSize = 2984;
+            int CRC_CHUNK_SIZE = 512;
+            int ChunkCount = 6; // static_cast < unsigned int> ( ::ceil(static_cast<double>(ActualDataSize) / static_cast<double>(CRC_CHUNK_SIZE)));
+            int SizeOfCRCChunk = 6;// 6, 8???
+            int reserve = ChunkCount * SizeOfCRCChunk;
+            //const uint32_t WriteSize = sizeof(FILE_HEADER) + (ChunkCount * sizeof(CRC_CHUNK)) + ActualDataSize;
 
 
-            for (Int32 i = 0; i < data.Length; i++)
+            for (Int32 i = 12 + reserve; i < data.Length; i=i+4)
             {
-                Console.Write((char)data[i]);
+                UInt32 n = BitConverter.ToUInt32(data, i);
+                Console.Write(n + "    ");
             }
             // some code that notify users by sending email or other service
         }
