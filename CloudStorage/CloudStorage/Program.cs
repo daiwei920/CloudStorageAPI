@@ -1,33 +1,25 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Microsoft.Azure; // Namespace for Azure Configuration Manager
 using Microsoft.WindowsAzure.Storage; // Namespace for Storage Client Library
-using Microsoft.WindowsAzure.Storage.Blob; // Namespace for Blob storage
 using Microsoft.WindowsAzure.Storage.File; // Namespace for File storage
 using System.Runtime.InteropServices;
+using System.IO;
 
 namespace CloudStorage
 {
     class Program
     {
         [DllImport(@"E:\rtgcode\bin\BackupSystem.dll", EntryPoint = "GetCredit")]
-        public static extern UInt64 GetCredit();
+        public static extern UInt64 GetCredit(string sPath);
 
-        //[DllImport("user32.dll", EntryPoint = "MessageBox", CharSet = Unicode)]
-        //public static extern Int32 Test(Int32 hWnd, String* lpText, String* lpCaption,  UInt32 uType);
+        [DllImport(@"E:\rtgcode\bin\BackupSystem.dll", EntryPoint = "GetTotalBet")]
+        public static extern UInt64 GetTotalBet(string sPath);
 
-        public struct FILE_HEADER
-        {
-            public Int32 m_MagicNumId;          //!< Used to quickly identify a file as being a backup system file.
-            public Int32 m_BufferSize;            //!< Because windows pads files, we need to store how big the original buffer was that got written.
-            public Int32 m_VersionNumber;       //!< 
-            public Int32 m_ChunkTableSize;        //!< 
-        };
-        
+        [DllImport(@"E:\rtgcode\bin\BackupSystem.dll", EntryPoint = "GetTotalWon")]
+        public static extern UInt64 GetTotalWon(string sPath);
 
+        [DllImport(@"E:\rtgcode\bin\BackupSystem.dll", EntryPoint = "GetGamePlayed")]
+        public static extern UInt32 GetGamePlayed(string sPath);
 
         static void Main(string[] args)
         {
@@ -60,8 +52,6 @@ namespace CloudStorage
                 Console.WriteLine("Current share quota: {0} GB", share.Properties.Quota);
                 */
 
-
-                
                 // Get a reference to the root directory for the share.
                 CloudFileDirectory rootDir = share.GetRootDirectoryReference();
 
@@ -77,52 +67,56 @@ namespace CloudStorage
                     // Ensure that the file exists.
                     if (file.Exists())
                     {
-                      //  Test(0, S"Hello world!", S"Greetings", 0);
-
-                        UInt64 nCredit = GetCredit();
-                        Console.WriteLine("Credit=" + nCredit);
-
                         // Write the contents of the file to the console window.
                         long n = file.Properties.Length;
                         byte[] data = new byte[n];
-
                         Console.WriteLine("Start downloading " + n + " bytes...");
-
-                        file.BeginDownloadToByteArray(data, 0, new AsyncCallback(HandleDownloadCallBack), data);
-
-                        //Console.WriteLine(data[0]);// file.DownloadTextAsync().Result
+                        file.BeginDownloadToByteArray(data, 0, new AsyncCallback(HandleAccsDownloadCallBack), data);
                     }
                 }
 
-                
-               int num = Convert.ToInt32(Console.ReadLine());
+                // Get a reference to the directory we created previously.
+                sampleDir = rootDir.GetDirectoryReference("stats");
+
+                // Ensure that the directory exists.
+                if (sampleDir.Exists())
+                {
+                    // Get a reference to the file we created previously.
+                    CloudFile file = sampleDir.GetFileReference("d_mach_stats_2way_0.bak");
+
+                    // Ensure that the file exists.
+                    if (file.Exists())
+                    {
+                        // Write the contents of the file to the console window.
+                        long n = file.Properties.Length;
+                        byte[] data = new byte[n];
+                        Console.WriteLine("Start downloading " + n + " bytes...");
+                        file.BeginDownloadToByteArray(data, 0, new AsyncCallback(HandleStatsDownloadCallBack), data);
+                    }
+                }
             }
         }
 
-        private static void HandleDownloadCallBack(IAsyncResult ar)
+        private static void HandleAccsDownloadCallBack(IAsyncResult ar)
         {
             byte[] data = (byte[])ar.AsyncState;
+            string sDownloadFolder = @"C:\\Users\\David\\Source\\Repos\\CloudStorageAPI\\CloudStorage\\CloudStorage\\bin\\Download\\";
+            File.WriteAllBytes(sDownloadFolder + "d_accs_data_2way_0.bak", data);
 
-            FILE_HEADER header;
-            header.m_MagicNumId = BitConverter.ToInt32(data, 0);
-            header.m_BufferSize = BitConverter.ToInt32(data, 4);
-            header.m_VersionNumber = BitConverter.ToInt32(data, 8);
-            header.m_ChunkTableSize = BitConverter.ToInt32(data, 12);
+            UInt64 nCredit = GetCredit(sDownloadFolder);
+            Console.WriteLine("Credit=" + nCredit);
+        }
 
-            int ActualDataSize = 2984;
-            int CRC_CHUNK_SIZE = 512;
-            int ChunkCount = 6; // static_cast < unsigned int> ( ::ceil(static_cast<double>(ActualDataSize) / static_cast<double>(CRC_CHUNK_SIZE)));
-            int SizeOfCRCChunk = 6;// 6, 8???
-            int reserve = ChunkCount * SizeOfCRCChunk;
-            //const uint32_t WriteSize = sizeof(FILE_HEADER) + (ChunkCount * sizeof(CRC_CHUNK)) + ActualDataSize;
+        private static void HandleStatsDownloadCallBack(IAsyncResult ar)
+        {
+            byte[] data = (byte[])ar.AsyncState;
+            string sDownloadFolder = @"C:\\Users\\David\\Source\\Repos\\CloudStorageAPI\\CloudStorage\\CloudStorage\\bin\\Download\\";
+            File.WriteAllBytes(sDownloadFolder + "d_mach_stats_2way_0.bak", data);
 
-
-            for (Int32 i = 12 + reserve; i < data.Length; i=i+4)
-            {
-                UInt32 n = BitConverter.ToUInt32(data, i);
-                Console.Write(n + "    ");
-            }
-            // some code that notify users by sending email or other service
+            UInt64 nBet = GetTotalBet(sDownloadFolder);
+            UInt64 nWon = GetTotalBet(sDownloadFolder);
+            UInt32 nGamePlayed = GetGamePlayed(sDownloadFolder);
+            Console.WriteLine("GamePlayed=" + nGamePlayed + ", Bet=" + nBet + ", Won=" + nWon);
         }
     }
-}
+ }
